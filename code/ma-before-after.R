@@ -9,7 +9,11 @@ library(estmeansd)
 # Set a seed for reproducibility
 set.seed(5555)
 
-##### Adult population ####
+# All data values are removed directly from the articles (from the search results)
+
+############################################################
+#### Adult population ####
+############################################################
 
 # Adult data preparation
 
@@ -32,7 +36,7 @@ dataTCorr <- escalc(measure="UCOR", ti = ti, ni = ni, data = dataT)
 dataTCorr <- dataTCorr[,-c(2,12)]  # Remove unnecessary columns
 colnames(dataTCorr)[10] <- "ri"  # Rename column for clarity
 
-# Prepare data based on p-values from various studies
+# Prepare data with p-values 
 dataP <- data.frame(
   study = c("Schneider-Utaka 2023", "Polonsky 2022", "Bisio 2022", "Reznik 2023", "Akiyama 2023"),
   pi = c(0.03, 0.0001, 0.046, 0.001, 0.43),
@@ -92,7 +96,9 @@ summary(adults_quality)
 forest.meta(adults_quality, sortvar = quality, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
 
 
+############################################################
 #### Pediatric population ####
+############################################################
 
 # Convert median to mean for Cobry 2022
 set.seed(5555)
@@ -237,7 +243,9 @@ summary(child_quality)
 # Forest plot visualizing the subgroup analysis
 forest.meta(child_quality, sortvar = quality, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
 
+############################################################
 #### Caregiver population ####
+############################################################
 
 # Convert median to mean for Cobry 2022
 set.seed(5555)
