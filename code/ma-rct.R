@@ -1,5 +1,4 @@
 # Load necessary libraries
-library(readxl)  # For read_excel
 library(dplyr)  # For data manipulation
 library(esc)    # For effect size calculation
 library(metafor)  # For meta-analysis
