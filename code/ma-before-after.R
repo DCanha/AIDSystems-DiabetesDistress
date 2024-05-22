@@ -55,17 +55,17 @@ dataPCorr <- dataPCorr[,-c(2,12)]  # Remove unnecessary columns
 colnames(dataPCorr)[10] <- "ri"  # Rename column for clarity
 
 # Combine adult data
-dataAdults <- rbind(dataTCorr, dataPCorr)
+adults_ba <- rbind(dataTCorr, dataPCorr)
 
 # Calculate raw mean differences and SMD
-dataAdults$md_within <- ifelse(is.na(dataAdults$md_within), dataAdults$m_post - dataAdults$m_pre,
-                               dataAdults$md_within)
-dataAdults$smd_within <- dataAdults$md_within / dataAdults$sd_pre
-dataAdults$se_within <- sqrt(((2 * (1 - dataAdults$ri)) / dataAdults$ni) + 
-                               (dataAdults$smd_within^2 / (2 * dataAdults$ni)))
+adults_ba$md_within <- ifelse(is.na(adults_ba$md_within), adults_ba$m_post - adults_ba$m_pre,
+                               adults_ba$md_within)
+adults_ba$smd_within <- adults_ba$md_within / adults_ba$sd_pre
+adults_ba$se_within <- sqrt(((2 * (1 - adults_ba$ri)) / adults_ba$ni) + 
+                               (adults_ba$smd_within^2 / (2 * adults_ba$ni)))
 
 # Meta-analysis using a random-effects model
-random_adults <- metagen(TE = smd_within, seTE = se_within, studlab = study, data = dataAdults, 
+random_adults <- metagen(TE = smd_within, seTE = se_within, studlab = study, data = adults_ba, 
                         sm = "SMD", fixed = FALSE, random = TRUE, 
                         method.tau = "REML", hakn = TRUE, 
                         title = "Closed-loop before-after in adults")
@@ -80,14 +80,14 @@ forest.meta(random_adults, sortvar = quality, prediction = TRUE, print.tau2 = FA
 funnel.meta(random_adults, studlab = TRUE, pos.studlab = 3, col = "blue")
 
 # Categorize studies by quality
-dataAdults$Group <- ifelse(dataAdults$quality < 6, "Good/Fair", "Poor")
+adults_ba$Group <- ifelse(adults_ba$quality < 6, "Good/Fair", "Poor")
 
 # Perform meta-analysis considering subgroup analysis for study quality
 adults_quality <- metagen(TE = smd_within, seTE = se_within, studlab = study, 
-                          data = dataAdults[order(dataAdults$Group == "Good/Fair", decreasing = TRUE), ], 
+                          data = adults_ba[order(adults_ba$Group == "Good/Fair", decreasing = TRUE), ], 
                           sm = "SMD", fixed = FALSE, random = TRUE, method.tau = "REML", hakn = TRUE, 
                           title = "Closed-loop before-after in adults", 
-                          subgroup = Group, test.subgroup = FALSE)
+                          subgroup = Group, test.subgroup = TRUE)
 
 # Summary of the meta-analysis with subgroup analysis
 summary(adults_quality)
@@ -100,17 +100,25 @@ forest.meta(adults_quality, sortvar = quality, prediction = TRUE, print.tau2 = F
 #### Pediatric population ####
 ############################################################
 
+# Considering Marks 2024 at 3 months for consistency
+
 # Convert median to mean for Cobry 2022
 set.seed(5555)
 meansd_pre <- bc.mean.sd(q1.val = 17, med.val = 23, q3.val = 32, n = 49)
 set.seed(5555)
 meansd_post <- bc.mean.sd(q1.val = 17, med.val = 21, q3.val = 31, n = 49)
+# Convert median to mean for Marks 2024
+set.seed(5555)
+meansd_pre_Marks <- bc.mean.sd(q1.val = 27.1, med.val = 44.3, q3.val = 58.6, n = 13)
+set.seed(5555)
+meansd_post_Marks <- bc.mean.sd(q1.val = 21.4, med.val = 24.3, q3.val = 47.1, n = 13)
 
 # Prepare child data
 
 # We have t-test value for one study; we will use it to calculate r
 dataChildt <- data.frame(
   study = "Cobry 2020",
+  Group = "Teenagers",
   ti = -0.23,
   ni = 23,
   m_pre = 22.39,
@@ -125,26 +133,28 @@ dataChildt <- data.frame(
 
 # Calculate correlation coefficients for t-test data
 dataChildT <- escalc(measure="UCOR", ti = ti, ni=ni, data=dataChildt)
-dataChildT <- dataChildT[,-c(2,12)]  # Remove unnecessary columns
-colnames(dataChildT)[10] <- "ri"  # Rename column for clarity
+dataChildT <- dataChildT[,-c(3,13)]  # Remove unnecessary columns
+colnames(dataChildT)[11] <- "ri"  # Rename column for clarity
 
 dataChildp <- data.frame(
-  study = c("Bisio 2021", "Cobry 2022", "Gianini 2022", "Reznik 2023", "Berget 2020", "Cobry 2021"),
-  pi = c(NA, 0.153, 0.001, NA, NA, 0.1),
-  ni = c(13, 49, 24, 55, 92, 22),
-  m_pre = c(17.26, meansd_pre$est.mean, 19.32, 34.3, 35.8, 37),
-  m_post = c(18.15, meansd_post$est.mean, 8.65, 34.6, 36.4, 37),
-  sd_pre = c(13.17, meansd_pre$est.sd, 12.25, 19.4, 2.4 * sqrt(92), 17),
-  sd_post = c(16.22, meansd_post$est.sd, 8.26, 23.5, 3 * sqrt(92), 19),
-  md_within = c(NA, NA, NA, 1.4, NA, NA),
-  study_duration = c(1, 3.7, 4, 6, 3, 2.8),
-  quality = c(7, 2, 6, 2, 0, 5)
+  study = c("Bisio 2021", "Cobry 2022", "Gianini 2022", "Reznik 2024", "Berget 2020", "Cobry 2021", 
+            "Marks 2024", "Hood 2023", "Hood 2023"),
+  Group = c("Children", "Children", "Teenagers", "Teenagers", "Both", "Children", "Both", "Children", "Teenagers"),
+  pi = c(NA, 0.153, 0.001, NA, NA, 0.1, 0.006, 0.0010, 0.0451),
+  ni = c(13, 49, 24, 55, 92, 22, 13, 75, 38),
+  m_pre = c(17.26, meansd_pre$est.mean, 19.32, 34.2, 35.8, 37, meansd_pre_Marks$est.mean, 27.4, 30.5),
+  m_post = c(18.15, meansd_post$est.mean, 8.65, 34.6, 36.4, 37, meansd_post_Marks$est.mean, 24.2, 27.1),
+  sd_pre = c(13.17, meansd_pre$est.sd, 12.25, 18.6, 2.4 * sqrt(92), 17, meansd_pre_Marks$est.sd, 9.8, 11.4),
+  sd_post = c(16.22, meansd_post$est.sd, 8.26, 23.5, 3 * sqrt(92), 19, meansd_post_Marks$est.sd, 9.3, 10.8),
+  md_within = c(NA, NA, NA, 1.4, NA, NA, NA, -3.2, -3.4),
+  study_duration = c(1, 3.7, 4, 6, 3, 2.8, 3, 3, 3),
+  quality = c(7, 2, 6, 2, 0, 5, 2, 2, 2)
 )
 
 # Calculate correlation coefficients
 dataChildP <- escalc(measure="UCOR", pi = pi, ni = ni, data = dataChildp)
-dataChildP <- dataChildP[,-c(2,12)]  # Remove unnecessary columns
-colnames(dataChildP)[10] <- "ri"  # Rename column for clarity
+dataChildP <- dataChildP[,-c(3,13)]  # Remove unnecessary columns
+colnames(dataChildP)[11] <- "ri"  # Rename column for clarity
 
 # Combine child data
 dataChild <- rbind(dataChildT, dataChildP)
@@ -176,110 +186,139 @@ forest.meta(random_child, sortvar = dataChild$quality, prediction = TRUE, print.
             leftcols = c("studlab"), leftlabs = c("Author"))
 
 
-# Funnel plot visualization
-funnel.meta(random_child, studlab = TRUE, pos.studlab = 3, col = "blue")
+# Moderate heterogeneity - outlier detection
+find.outliers(random_child) # Gianini is an outlier --> see what happens when removed
 
-# High heterogeneity 
-# Perform sensitivity analysis to evaluate the impact of each study
 
-sensitivity_results <- lapply(1:length(dataChild$smd_within), function(i) {
-  excluded_study <- dataChild$study[i]
-  ma_temp <- metagen(TE = dataChild$smd_within[-i], seTE = dataChild$se_within[-i], 
-                     studlab = dataChild$study[-i], method.tau = "REML", hakn = TRUE)
-  list(excluded = excluded_study, ma_temp = ma_temp)
-})
-
-# Format the results into a readable table
-sensitivity_table <- data.frame(
-  Excluded_Study = sapply(sensitivity_results, function(x) x$excluded),
-  SMD_95CI = sapply(sensitivity_results, function(x) paste(round(x$ma_temp$TE.random, 2), "[", round(x$ma_temp$lower.random, 2), "-", round(x$ma_temp$upper.random, 2), "]")),
-  I2_pvalue = sapply(sensitivity_results, function(x) {
-    pval <- round(x$ma_temp$pval.Q, 2)
-    p_text <- if (pval < 0.01) "p<0.01" else paste("p=", format.pval(pval, digits = 2))
-    paste(round(x$ma_temp$I2 * 100, 0), "%", " (", p_text, ")")
-  })
-)
-
-# View the sensitivity analysis table
-print(sensitivity_table)
-
-# Extract required data
-TE = sapply(sensitivity_results, function(x) x$ma_temp$TE.random)
-lower = sapply(sensitivity_results, function(x) x$ma_temp$lower.random)
-upper = sapply(sensitivity_results, function(x) x$ma_temp$upper.random)
-labels = sapply(sensitivity_results, function(x) paste(x$excluded))
-
-# Create a new meta-analysis object without  performing a new analysis - just for visualization
-sensitivity_child <- metagen(
-  TE = c(random_child$TE.random, TE),
-  lower = c(random_child$lower.random, lower),
-  upper = c(random_child$upper.random, upper),
-  studlab = c("None", labels),
-  common = FALSE,
-  random = FALSE,
-  sm = "Random effects model",
-  method.tau = "ML"
-)
-
-# Plot
-forest(sensitivity_child,
-       weight.study = "same",
-       xlim = c(min(lower) - 0.1, max(upper) + 0.3), # Adjust as needed
-       main = "Sensitivity Analysis: Leave-One-Out",
-       rightlabs = c("SMD", "95% CI"),
-       leftcols = c("studlab"),
-       leftlabs = c("Excluded Study")
-)
-
-# Categorize studies by quality
-dataChild$Group <- ifelse(dataChild$quality < 6, "Good/Fair", "Poor")
+dataChild$remove <- ifelse(dataChild$study == "Gianini 2022", "yes", "no")
 
 # Perform meta-analysis considering subgroup analysis for study quality
-child_quality <- metagen(TE = smd_within, seTE = se_within, studlab = study, data = dataChild[order(dataChild$Group == "Good/Fair", decreasing = TRUE), ], sm = "SMD", fixed = FALSE, random = TRUE, method.tau = "REML", hakn = TRUE, title = "Closed-loop before-after in children", subgroup = Group, test.subgroup = FALSE)
+child_out <- metagen(TE = smd_within, seTE = se_within, studlab = study, 
+                         data = dataChild, 
+                         sm = "SMD", fixed = FALSE, random = TRUE, method.tau = "REML", hakn = TRUE, 
+                         title = "Closed-loop before-after in children", subgroup = remove, test.subgroup = FALSE)
+
+# Forest plot visualizing the subgroup analysis
+forest.meta(child_out, sortvar = quality, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
+
+# Gianini increases the heterogeneity from 0% to 49% --> remove!
+
+dataChild_out <- dataChild[dataChild$study!= "Gianini 2022",]
+
+# Perform meta-analysis
+random_child_out <- metagen(TE = smd_within, seTE = se_within, studlab = study, data = dataChild, 
+                            sm = "SMD", fixed = FALSE, random = TRUE, 
+                            method.tau = "REML", hakn = TRUE, exclude = c(4),
+                            title = "Closed-loop before-after in children")
+
+forest.meta(random_child_out, sortvar = quality, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
+
+# Funnel plot visualization - ok
+funnel.meta(random_child_out, studlab = TRUE, pos.studlab = 3, col = "blue")
+
+metabias(random_child_out, method.bias = "egger", k.min = 9) # p-value 0.2
+
+# Categorize studies by quality
+dataChild_out$Quality <- ifelse(dataChild_out$quality < 6, "Good/Fair", "Poor")
+
+# Perform meta-analysis considering subgroup analysis for study quality
+child_quality <- metagen(TE = smd_within, seTE = se_within, studlab = study, 
+                         data = dataChild_out[order(dataChild_out$Quality == "Good/Fair", decreasing = TRUE), ], 
+                         sm = "SMD", fixed = TRUE, random = TRUE, method.tau = "REML", hakn = TRUE, 
+                         title = "Closed-loop before-after in children", subgroup = Quality, test.subgroup = TRUE)
 
 # Summary of the meta-analysis with subgroup analysis
 summary(child_quality)
 
 # Forest plot visualizing the subgroup analysis
-forest.meta(child_quality, sortvar = quality, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
+forest.meta(child_quality, sortvar = Quality, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
+# Quality = Poor should be replaced by Common effects model - only 2 studies
+
+# Perform meta-analysis considering subgroup analysis for age group
+child_age <- metagen(TE = smd_within, seTE = se_within, studlab = study, 
+                         data = dataChild_out[dataChild_out$Group!="Both",],
+                         sm = "SMD", fixed = FALSE, random = TRUE, method.tau = "REML", hakn = TRUE, 
+                         title = "Closed-loop before-after in children", subgroup = Group, test.subgroup = TRUE)
+
+# Summary of the meta-analysis with subgroup analysis
+summary(child_age)
+
+# Forest plot visualizing the subgroup analysis
+forest.meta(child_age, sortvar = quality, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
+
+
 
 ############################################################
-#### Caregiver population ####
+#### Caregiver population  ####
 ############################################################
+
+# We have t-test value for one study; we will use it to calculate r
+dataCarT <- data.frame(
+  study = "Cobry 2020",
+  Group = "Teenagers",
+  ti = 0.86,
+  ni = 24,
+  m_pre = 6.79,
+  m_post = 6.21,
+  sd_pre = 4.09,
+  sd_post = 6.61,
+  md_within = NA,
+  #in months
+  study_duration = 3,
+  quality = 8
+)
+
+# Calculate correlation coefficients for t-test data
+dataCarT <- escalc(measure="UCOR", ti = ti, ni=ni, data=dataCarT)
+dataCarT <- dataCarT[,-c(3,13)]  # Remove unnecessary columns
+colnames(dataCarT)[11] <- "ri"  # Rename column for clarity
 
 # Convert median to mean for Cobry 2022
 set.seed(5555)
 meansd_pre <- bc.mean.sd(q1.val = 36, med.val = 44, q3.val = 56,n = 49)
 set.seed(5555)
 meansd_post <- bc.mean.sd(q1.val = 26, med.val = 35, q3.val = 43, n= 49)
+# Convert median to mean for Marks 2024 - use 3 months for consistency
+set.seed(5555)
+meansd_pre_Marks <- bc.mean.sd(q1.val = 65.0, med.val = 73.3, q3.val = 76.3 ,n = 15)
+set.seed(5555)
+meansd_post_Marks <- bc.mean.sd(q1.val = 30.4, med.val = 45.0, q3.val = 67.7, n= 15)
 
 # Prepare caregiver data
 # Removing Cobry 2020 because the values do not make sense
 dataCar <- data.frame(
-  study = c("Bisio 2021", "Cobry 2022", "Berget 2020", "Cobry 2021"),
-  pi = c(0.032, 0.001, -0.52, NA),
-  ni = c(13, 49, 89, 22),
-  m_pre = c(51.03, meansd_pre$est.mean, 44.2, 45),
-  m_post = c(36.85, meansd_post$est.mean, 46.2, 40),
-  sd_pre = c(17.19, meansd_pre$est.sd, 2 * sqrt(89), 17),
-  sd_post = c(19.11, meansd_post$est.sd, 2.3 * sqrt(89), 17),
-  md_within = rep(NA, 4),
-  study_duration = c(1, 3.7, 3, 2.8),
-  quality = c(7, 2, 0, 5)
+  study = c("Bisio 2021", "Cobry 2022", "Berget 2020", "Cobry 2021", "Marks 2024", "Hood 2023", "Hood 2023", "Pulkkinen 2024"),
+  Group = c("Children", "Children", "Both", "Children", "Both", "Children", "Teenagers", "Children"),
+  pi = c(0.032, 0.001, -0.52, NA, 0.001, 0.0001, 0.0014, 0.006),
+  ni = c(13, 49, 89, 22, 15, 82, 42, 35),
+  m_pre = c(51.03, meansd_pre$est.mean, 44.2, 45, meansd_pre_Marks$est.mean, 47.1, 45.0, 37.5),
+  m_post = c(36.85, meansd_post$est.mean, 46.2, 40, meansd_post_Marks$est.mean, 40.7, 38.0, 27.5),
+  sd_pre = c(17.19, meansd_pre$est.sd, 2 * sqrt(89), 17, meansd_pre_Marks$est.sd, 14.3, 14.2, 18.2),
+  sd_post = c(19.11, meansd_post$est.sd, 2.3 * sqrt(89), 17, meansd_post_Marks$est.sd, 10.8, 13.8, 14.8),
+  md_within = c(NA, NA, NA, NA, NA, -6.3, -7.0, NA),
+  study_duration = c(1, 3.7, 3, 2.8, 3, 3, 3, 3),
+  quality = c(7, 2, 0, 5, 2, 2, 2, 1)
 )
+
+
 
 # Calculate correlation coefficients
 dataCare <- escalc(measure="COR", pi = pi, ni = ni, data = dataCar)
-dataCare <- dataCare[,-c(2,12)]  # Remove unnecessary columns
-colnames(dataCare)[10] <- "ri"  # Rename column for clarity
+dataCare <- dataCare[,-c(3,13)]  # Remove unnecessary columns
+colnames(dataCare)[11] <- "ri"  # Rename column for clarity
+
+# Combine caregiver data
+dataCare <- rbind(dataCarT, dataCare)
 
 # Adjust correlation coefficients for Cobry 2021
-dataCare$ri[4] <- mean(dataCare$ri, na.rm = TRUE)
+dataCare$ri[5] <- mean(dataCare$ri, na.rm = TRUE)
 
 # Calculate raw mean differences and standardized mean differences
 dataCare$md_within <- ifelse(is.na(dataCare$md_within), dataCare$m_post - dataCare$m_pre, 
                              dataCare$md_within)
+
 dataCare$smd_within <- dataCare$md_within / dataCare$sd_pre
+
 dataCare$se_within <- sqrt(((2 * (1 - dataCare$ri)) / dataCare$ni) + 
                              (dataCare$smd_within^2 / (2 * dataCare$ni)))
 
@@ -294,71 +333,37 @@ summary(random_care)
 forest.meta(random_care, sortvar = dataCare$quality, prediction = TRUE, 
             print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"))
 
+# High heterogeneity - outliers detection
+find.outliers(random_care) # Marks 2024 is an outlier (random) --> see what happens when removed
+
+dataCare$remove <- ifelse(dataCare$study == "Marks 2024", "yes", "no")
+
+# Perform meta-analysis considering subgroup analysis for study quality
+care_out <- metagen(TE = smd_within, seTE = se_within, studlab = study, 
+                     data = dataCare, 
+                     sm = "SMD", fixed = FALSE, random = TRUE, method.tau = "REML", hakn = TRUE, 
+                     title = "Closed-loop before-after in children", subgroup = remove, test.subgroup = FALSE)
+
+# Forest plot visualizing
+forest.meta(care_out, sortvar = quality, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
+
+# Marks does not significantly influence the results or decreases heterogeneity - do not remove!
 
 # Funnel plot visualization
 funnel.meta(random_care,  studlab = TRUE, pos.studlab = 3, col = "blue")
 
-# High heterogeneity 
-# Perform sensitivity analysis to evaluate the impact of each study
+metabias(random_care, method.bias  = "egger", k.min = 9) # p-value 0.3
 
-sensitivity_results <- lapply(1:length(dataCare$smd_within), function(i) {
-  excluded_study <- dataCare$study[i]
-  ma_temp <- metagen(TE = dataCare$smd_within[-i], seTE = dataCare$se_within[-i], 
-                     studlab = dataCare$study[-i], method.tau = "REML", hakn = TRUE)
-  list(excluded = excluded_study, ma_temp = ma_temp)
-})
-
-# Format the results into a readable table
-sensitivity_table <- data.frame(
-  Excluded_Study = sapply(sensitivity_results, function(x) x$excluded),
-  SMD_95CI = sapply(sensitivity_results, function(x) paste(round(x$ma_temp$TE.random, 2), "[", round(x$ma_temp$lower.random, 2), "-", round(x$ma_temp$upper.random, 2), "]")),
-  I2_pvalue = sapply(sensitivity_results, function(x) {
-    pval <- round(x$ma_temp$pval.Q, 2)
-    p_text <- if (pval < 0.01) "p<0.01" else paste("p=", format.pval(pval, digits = 2))
-    paste(round(x$ma_temp$I2 * 100, 0), "%", " (", p_text, ")")
-  })
-)
-
-# View the sensitivity analysis table
-print(sensitivity_table)
-
-# Extract required data
-TE = sapply(sensitivity_results, function(x) x$ma_temp$TE.random)
-lower = sapply(sensitivity_results, function(x) x$ma_temp$lower.random)
-upper = sapply(sensitivity_results, function(x) x$ma_temp$upper.random)
-labels = sapply(sensitivity_results, function(x) paste(x$excluded))
-
-# Create a new meta-analysis object without  performing a new analysis - just for visualization
-sensitivity_care <- metagen(
-  TE = c(random_care$TE.random, TE),
-  lower = c(random_care$lower.random, lower),
-  upper = c(random_care$upper.random, upper),
-  studlab = c("None", labels),
-  common = FALSE,
-  random = FALSE,
-  sm = "Random effects model",
-  method.tau = "ML"
-)
-
-# Plot
-forest(sensitivity_care,
-       weight.study = "same",
-       xlim = c(min(lower) - 0.1, max(upper) + 0.3), # Adjust as needed
-       main = "Sensitivity Analysis: Leave-One-Out",
-       rightlabs = c("SMD", "95% CI"),
-       leftcols = c("studlab"),
-       leftlabs = c("Excluded Study")
-)
 
 # Categorize studies by quality
-dataCare$Group <- ifelse(dataCare$quality < 6, "Good/Fair", "Poor")
+dataCare$Quality <- ifelse(dataCare$quality < 6, "Good/Fair", "Poor")
 
 # Perform meta-analysis considering subgroup analysis for study quality
 care_quality <- metagen(TE = smd_within, seTE = se_within, studlab = study, 
-                        data = dataCare[order(dataCare$Group == "Good/Fair", decreasing = TRUE), ],
-                        sm = "SMD", fixed = FALSE, random = TRUE, method.tau = "REML", 
+                        data = dataCare[order(dataCare$Quality == "Good/Fair", decreasing = TRUE), ],
+                        sm = "SMD", fixed = TRUE, random = TRUE, method.tau = "REML", 
                         hakn = TRUE, title = "Closed-loop before-after in caregivers", 
-                        subgroup = Group, test.subgroup = FALSE)
+                        subgroup = Quality, test.subgroup = TRUE)
 
 # Summary of the meta-analysis with subgroup analysis
 summary(care_quality)
@@ -366,3 +371,16 @@ summary(care_quality)
 # Forest plot visualizing the subgroup analysis
 forest.meta(care_quality, sortvar = quality, prediction = TRUE, print.tau2 = FALSE, 
             leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
+
+
+# Perform meta-analysis considering subgroup analysis for age group
+care_ba_age <- metagen(TE = smd_within, seTE = se_within, studlab = study, 
+                        data = dataCare[dataCare$Group!= "Both",], 
+                        sm = "SMD", fixed = TRUE, random = TRUE, method.tau = "REML", hakn = TRUE,
+                        subgroup = Group, test.subgroup = TRUE)
+
+# Summary of the meta-analysis with subgroup analysis
+summary(care_ba_age)
+
+# Forest plot visualizing the subgroup analysis
+forest.meta(care_ba_age, sortvar = quality, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)

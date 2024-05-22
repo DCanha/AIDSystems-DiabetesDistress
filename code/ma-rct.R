@@ -4,6 +4,7 @@ library(dplyr)  # For data manipulation
 library(esc)    # For effect size calculation
 library(metafor)  # For meta-analysis
 library(meta)   # For meta-analysis and forest plots
+library(estmeansd) # For calculating means and sd from medians and IQR
 
 # Set a seed for reproducibility
 set.seed(5555)
@@ -24,77 +25,86 @@ meansd_exp_t1 <- bc.mean.sd(q1.val = 10.2, med.val = 16.7, q3.val = 27.4, n = 61
 set.seed(5555)
 meansd_control_t1 <- bc.mean.sd(q1.val = 9.5, med.val = 21.2, q3.val = 36.2, n= 59)
 
+# Convert median to mean for Lakshman 2024 - highly skewed (using min-max)
+set.seed(5555)
+meansd_exp_lak <- bc.mean.sd(min.val = 0, q1.val = 13.2, med.val = 22.5, q3.val = 48.8, max.val = 100, n = 17)
+set.seed(5555)
+meansd_control_lak <- bc.mean.sd(min.val = 0, q1.val = 15.0, med.val = 32.5, q3.val = 51.3, max.val = 100, n= 15)
+
 # Prepare data adults with p-values
 # Considering Kudva 2021 at 3 months for consistency
+# Considering Weissberg-Benchell 2023 at 3 months for consistency
 
-data_adults <- data.frame(
-  study = c("Kudva 2021", "Mc Auley 2020", "Mc Auley 2022"),
-  type_rct = c("parallel", "parallel", "cross-over"),
-  pi = c(0.04, 0.10, 0.46),
-  n_exp = c(112, 61, 30),
+adults_rct <- data.frame(
+  study = c("Kudva 2021", "Mc Auley 2020", "Mc Auley 2022", "Lakshman 2024", "Weissberg-Benchell 2023"),
+  type_rct = c("parallel", "parallel", "cross-over", "cross-over", "parallel"),
+  pi = c(0.04, 0.10, 0.46, 0.16, 0.001),
+  n_exp = c(112, 61, 30, 32, 221),
   # for crossover design, we put n_control = 0 for calculations
-  n_control = c(56, 59, 0),
-  m_exp_0 = c(1.8, meansd_exp_t0$est.mean, 4.30),
-  m_control_0 = c(1.8, meansd_control_t0$est.mean, 4.60),
-  sd_exp_0 = c(0.6, meansd_exp_t0$est.sd, 2.90),
-  sd_control_0 = c(0.7, meansd_control_t0$est.sd, 3.20),
+  n_control = c(56, 59, 0, 0, 54),
+  m_exp_0 = c(1.8, meansd_exp_t0$est.mean, 4.30, meansd_exp_lak$est.mean, 1.9),
+  m_control_0 = c(1.8, meansd_control_t0$est.mean, 4.60, meansd_control_lak$est.mean, 1.8),
+  sd_exp_0 = c(0.6, meansd_exp_t0$est.sd, 2.90,  meansd_exp_lak$est.sd, 0.7),
+  sd_control_0 = c(0.7, meansd_control_t0$est.sd, 3.20, meansd_control_lak$est.sd, 0.7),
   # for crossover design, we put NA for calculations (there is only two values; not 4)
-  m_exp_1 = c(1.7, meansd_exp_t1$est.mean, NA),
-  m_control_1 = c(1.9, meansd_control_t1$est.mean, NA),
-  sd_exp_1 = c(0.60, meansd_exp_t1$est.sd, NA),
-  sd_control_1 = c(0.70, meansd_control_t1$est.sd, NA),
-  md_between = c(-0.17, NA, -0.3),
+  m_exp_1 = c(1.7, meansd_exp_t1$est.mean, NA, NA, 1.6),
+  m_control_1 = c(1.9, meansd_control_t1$est.mean, NA, NA, 1.8),
+  sd_exp_1 = c(0.60, meansd_exp_t1$est.sd, NA, NA, 0.5),
+  sd_control_1 = c(0.70, meansd_control_t1$est.sd, NA, NA, 0.7),
+  # If it is given, we put here (ususally it is reported adjusted)
+  md_between = c(-0.17, NA, -0.3, NA, -0.21),
   #in months
-  study_duration = c(3, 6, 4),
-  risk_bias = c("low", "low", "some")
+  study_duration = c(3, 6, 4, 2, 3),
+  risk_bias = c("low", "low", "some", "some", "low")
 )
 
 # Calculate correlation coefficients
-data_adults <- escalc(measure="UCOR", pi = pi, ni = n_exp+n_control, data = data_adults)
-data_adults <- data_adults[,-c(3,18)]  # Remove unnecessary columns
-colnames(data_adults)[16] <- "ri"  # Rename column for clarity
+adults_rct <- escalc(measure="UCOR", pi = pi, ni = n_exp+n_control, data = adults_rct)
+adults_rct <- adults_rct[,-c(3,18)]  # Remove unnecessary columns
+colnames(adults_rct)[16] <- "ri"  # Rename column for clarity
 
 # Calculate raw mean differences
-data_adults$md_between <- ifelse(is.na(data_adults$md_between), 
-                                 (data_adults$m_exp_1 - data_adults$m_exp_0) - 
-                                   (data_adults$m_control_1 - data_adults$m_control_0),
-                                 data_adults$md_between)
+adults_rct$md_between <- ifelse(is.na(adults_rct$md_between), ifelse(adults_rct$type_rct == "parallel",
+                                                                     (adults_rct$m_exp_1 - adults_rct$m_exp_0) - 
+                                                                       (adults_rct$m_control_1 - adults_rct$m_control_0),
+                                                                     (adults_rct$m_exp_0 - adults_rct$m_control_0)),
+                                adults_rct$md_between)
 
 # Calculate pooled SDs
 
-data_adults$sd_exp_pooled <- ifelse(data_adults$type_rct == "parallel",
-                                    sqrt(data_adults$sd_exp_0^2 + data_adults$sd_exp_1^2 - 
-                                           2 * data_adults$ri * data_adults$sd_exp_0 * data_adults$sd_exp_1),
+adults_rct$sd_exp_pooled <- ifelse(adults_rct$type_rct == "parallel",
+                                    sqrt(adults_rct$sd_exp_0^2 + adults_rct$sd_exp_1^2 - 
+                                           2 * adults_rct$ri * adults_rct$sd_exp_0 * adults_rct$sd_exp_1),
                                     #for crossover is already sd exp and sd control
-                                    data_adults$sd_exp_0)
+                                   adults_rct$sd_exp_0)
 
-data_adults$sd_control_pooled <- ifelse(data_adults$type_rct == "parallel",
-                                    sqrt(data_adults$sd_control_0^2 + data_adults$sd_control_1^2 - 
-                                           2 * data_adults$ri * data_adults$sd_control_0 * data_adults$sd_control_1),
+adults_rct$sd_control_pooled <- ifelse(adults_rct$type_rct == "parallel",
+                                    sqrt(adults_rct$sd_control_0^2 + adults_rct$sd_control_1^2 - 
+                                           2 * adults_rct$ri * adults_rct$sd_control_0 * adults_rct$sd_control_1),
                                     #for crossover is already sd exp and sd control
-                                    data_adults$sd_control_0)
+                                    adults_rct$sd_control_0)
 
-data_adults$sd_change_pooled <- ifelse(data_adults$type_rct == "parallel",
-                                       sqrt(((data_adults$n_exp - 1) * data_adults$sd_exp_pooled^2 + 
-                                               (data_adults$n_control - 1) * data_adults$sd_control_pooled^2) / 
-                                              (data_adults$n_exp + data_adults$n_control - 2)),
+adults_rct$sd_change_pooled <- ifelse(adults_rct$type_rct == "parallel",
+                                       sqrt(((adults_rct$n_exp - 1) * adults_rct$sd_exp_pooled^2 + 
+                                               (adults_rct$n_control - 1) * adults_rct$sd_control_pooled^2) / 
+                                              (adults_rct$n_exp + adults_rct$n_control - 2)),
                                        #for crossover is different
-                                       sqrt((data_adults$sd_exp_pooled^2 + 
-                                               data_adults$sd_control_pooled^2) / 2))
+                                       sqrt((adults_rct$sd_exp_pooled^2 + 
+                                               adults_rct$sd_control_pooled^2) / 2))
 
 # Calculate SMDs
-data_adults$smd_between <- data_adults$md_between / data_adults$sd_change_pooled
+adults_rct$smd_between <- adults_rct$md_between / adults_rct$sd_change_pooled
 
 # Calculate SEs
-data_adults$se_between <- ifelse(data_adults$type_rct == "parallel",
-                                 sqrt((data_adults$n_exp + data_adults$n_control) / (data_adults$n_exp * data_adults$n_control) + 
-                                        data_adults$smd_between^2 / (2 * (data_adults$n_exp + data_adults$n_control))),
+adults_rct$se_between <- ifelse(adults_rct$type_rct == "parallel",
+                                 sqrt((adults_rct$n_exp + adults_rct$n_control) / (adults_rct$n_exp * adults_rct$n_control) + 
+                                        adults_rct$smd_between^2 / (2 * (adults_rct$n_exp + adults_rct$n_control))),
                                  #for crossover is different
-                                 sqrt(1 / data_adults$n_exp + data_adults$smd_between^2 / 
-                                        (2 * data_adults$n_exp)) * sqrt(2 * (1 - data_adults$ri)))
+                                 sqrt(1 / adults_rct$n_exp + adults_rct$smd_between^2 / 
+                                        (2 * adults_rct$n_exp)) * sqrt(2 * (1 - adults_rct$ri)))
 
 # Meta-analysis using a random-effects model
-random_adults_RCT <- metagen(TE = smd_between, seTE = se_between, studlab = study, data = data_adults, 
+random_adults_RCT <- metagen(TE = smd_between, seTE = se_between, studlab = study, data = adults_rct, 
                          sm = "SMD", fixed = FALSE, random = TRUE, 
                          method.tau = "REML", hakn = TRUE, 
                          title = "Closed-loop RCT in adults")
@@ -114,31 +124,33 @@ funnel.meta(random_adults_RCT, studlab = TRUE, pos.studlab = 3, col = "blue")
 
 # Prepare data children with p-values
 # Considering Hood 2022 at 3 months for consistency
+# Considering Weissberg-Benchell 2023 at 3 months for consistency
 
 data_peds <- data.frame(
-  study = c("Abraham 2021", "Hood 2022", "Cobry 2021"),
-  type_rct = c("parallel", "parallel", "parallel"),
-  pi = c(0.14, 0.99, 0.54),
-  n_exp = c(58, 37, 78),
-  n_control = c(53, 34, 22),
-  m_exp_0 = c(30.3, 51.93, 35),
-  m_control_0 = c(28.9, 47.65, 37),
-  sd_exp_0 = c(19.7, 19.92, 16),
-  sd_control_0 = c(18.9, 23.61, 14),
-  m_exp_1 = c(27.9, 52.71, 34),
-  m_control_1 = c(31.1, 48.56, 37),
-  sd_exp_1 = c(21.8, 21.17, 16),
-  sd_control_1 = c(20.7, 20.09, 17),
-  md_between = c(-4.5, NA, -1.5),
+  study = c("Abraham 2021", "Hood 2022", "Cobry 2021", "Weissberg-Benchell 2023", "Weissberg-Benchell 2023"),
+  type_rct = c("parallel", "parallel", "parallel", "parallel", "parallel"),
+  Group = c("Teenagers", "Both", "Children", "Teenagers", "Children"),
+  pi = c(0.14, 0.28, 0.54, 0.74, -0.37),
+  n_exp = c(58, 37, 78, 48, 49),
+  n_control = c(53, 34, 22, 18, 23),
+  m_exp_0 = c(30.3, 51.93, 35, 35, 39),
+  m_control_0 = c(28.9, 47.65, 37, 36, 40),
+  sd_exp_0 = c(19.7, 19.92, 16, 14, 18),
+  sd_control_0 = c(18.9, 23.61, 14, 17, 15),
+  m_exp_1 = c(27.9, 52.71, 34, 31, 36),
+  m_control_1 = c(31.1, 48.56, 37, 33, 34),
+  sd_exp_1 = c(21.8, 21.17, 16, 14, 15),
+  sd_control_1 = c(20.7, 20.09, 17, 16, 13),
+  md_between = c(-4.5, NA, -1.5, -1, 3),
   #in months
-  study_duration = c(6, 3, 3.75),
-  risk_bias = c("low", "some", "low")
+  study_duration = c(6, 3, 3.75, 3, 3),
+  risk_bias = c("low", "some", "low", "low", "low")
 )
 
 # Calculate correlation coefficients
 data_peds <- escalc(measure="UCOR", pi = pi, ni = n_exp+n_control, data = data_peds)
-data_peds <- data_peds[,-c(3,18)]  # Remove unnecessary columns
-colnames(data_peds)[16] <- "ri"  # Rename column for clarity
+data_peds <- data_peds[,-c(4,19)]  # Remove unnecessary columns
+colnames(data_peds)[17] <- "ri"  # Rename column for clarity
 
 # Calculate raw mean differences
 data_peds$md_between <- ifelse(is.na(data_peds$md_between), 
@@ -194,6 +206,20 @@ forest.meta(random_peds_RCT, sortvar = risk_bias, prediction = TRUE, print.tau2 
 funnel.meta(random_peds_RCT, studlab = TRUE, pos.studlab = 3, col = "blue")
 
 
+# Perform meta-analysis considering subgroup analysis for age group
+peds_rct_age <- metagen(TE = smd_between, seTE = se_between, studlab = study, 
+                          data = data_peds[data_peds$Group!= "Both",], 
+                          sm = "SMD", fixed = TRUE, random = FALSE, method.tau = "REML", hakn = TRUE, 
+                          title = "Closed-loop before-after in adults", 
+                          subgroup = Group, test.subgroup = TRUE)
+
+# Summary of the meta-analysis with subgroup analysis
+summary(peds_rct_age)
+
+# Forest plot visualizing the subgroup analysis
+forest.meta(peds_rct_age, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
+
+
 ############################################################
 #### Caregiver population ####
 ############################################################
@@ -241,31 +267,34 @@ psd_control_t2 <- sqrt(pvar_control_t2)
 
 # Prepare data caregivers with p-values
 # Considering Hood 2022 at 3 months (t1) for consistency
+# Considering Weissberg-Benchell 2023 at 3 months (t2) for consistency
 
 data_care <- data.frame(
-  study = c("Kudva 2021", "Hood 2022", "Cobry 2021"),
-  type_rct = c("parallel", "parallel", "parallel"),
-  pi = c(0.29, 0.39, 0.08),
-  n_exp = c(31, 48, 78),
-  n_control = c(17, 46, 22),
-  m_exp_0 = c(1.2, pmean_exp_t0, 43),
-  m_control_0 = c(1, pmean_control_t0, 46),
-  sd_exp_0 = c(0.7, psd_exp_t0, 16),
-  sd_control_0 = c(0.5, psd_control_t0, 15),
-  m_exp_1 = c(1, pmean_exp_t1, 36),
-  m_control_1 = c(1.2, pmean_control_t1, 45),
-  sd_exp_1 = c(0.8, psd_exp_t1, 12),
-  sd_control_1 = c(0.7, psd_control_t1, 17),
-  md_between = c(-0.34, NA, -7.4),
+  study = c("Kudva 2021", "Hood 2022", "Cobry 2021", "Weissberg-Benchell 2023", "Weissberg-Benchell 2023"),
+  Group = c("Teenagers", "Both", "Children", "Teenagers", "Children"),
+  type_rct = c("parallel", "parallel", "parallel", "parallel", "parallel"),
+  pi = c(0.29, 0.39, 0.08, 0.29, 0.51),
+  n_exp = c(31, 48, 78, 48, 64),
+  n_control = c(17, 46, 22, 23, 30),
+  m_exp_0 = c(1.2, pmean_exp_t0, 43, 48, 50),
+  m_control_0 = c(1, pmean_control_t0, 46, 43, 48),
+  sd_exp_0 = c(0.7, psd_exp_t0, 16, 18, 15),
+  sd_control_0 = c(0.5, psd_control_t0, 15, 18, 17),
+  m_exp_1 = c(1, pmean_exp_t1, 36, 41, 43),
+  m_control_1 = c(1.2, pmean_control_t1, 45, 43, 43),
+  sd_exp_1 = c(0.8, psd_exp_t1, 12, 17, 15),
+  sd_control_1 = c(0.7, psd_control_t1, 17, 19, 15),
+  md_between = c(-0.34, NA, -7.4, -4, -2),
   #in months
-  study_duration = c(6, 3, 3.75),
-  risk_bias = c("low", "some", "low")
+  study_duration = c(6, 3, 3.75, 3, 3),
+  risk_bias = c("low", "some", "low", "low", "low")
 )
+
 
 # Calculate correlation coefficients
 data_care <- escalc(measure="UCOR", pi = pi, ni = n_exp+n_control, data = data_care)
-data_care <- data_care[,-c(3,18)]  # Remove unnecessary columns
-colnames(data_care)[16] <- "ri"  # Rename column for clarity
+data_care <- data_care[,-c(4,19)]  # Remove unnecessary columns
+colnames(data_care)[17] <- "ri"  # Rename column for clarity
 
 # Calculate raw mean differences
 data_care$md_between <- ifelse(is.na(data_care$md_between), 
@@ -309,8 +338,7 @@ data_care$se_between <- ifelse(data_care$type_rct == "parallel",
 # Meta-analysis using a random-effects model
 random_care_RCT <- metagen(TE = smd_between, seTE = se_between, studlab = study, data = data_care, 
                            sm = "SMD", fixed = FALSE, random = TRUE, 
-                           method.tau = "REML", hakn = TRUE, 
-                           title = "Closed-loop RCT in adults")
+                           method.tau = "REML", hakn = TRUE)
 summary(random_care_RCT)
 
 # Forest plot visualization
@@ -319,3 +347,15 @@ forest.meta(random_care_RCT, sortvar = risk_bias, prediction = TRUE, print.tau2 
 
 # Funnel plot visualization
 funnel.meta(random_care_RCT, studlab = TRUE, pos.studlab = 3, col = "blue")
+
+# Perform meta-analysis considering subgroup analysis for age group
+care_rct_age <- metagen(TE = smd_between, seTE = se_between, studlab = study, 
+                        data = data_care[data_care$Group!= "Both",], 
+                        sm = "SMD", fixed = TRUE, random = FALSE, method.tau = "REML", hakn = TRUE,
+                        subgroup = Group, test.subgroup = TRUE)
+
+# Summary of the meta-analysis with subgroup analysis
+summary(care_rct_age)
+
+# Forest plot visualizing the subgroup analysis
+forest.meta(care_rct_age, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
