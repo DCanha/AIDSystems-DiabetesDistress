@@ -110,11 +110,11 @@ random_adults_RCT <- metagen(TE = smd_between, seTE = se_between, studlab = stud
 summary(random_adults_RCT)
 
 # Forest plot visualization
-forest.meta(random_adults_RCT, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, 
+forest(random_adults_RCT, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, 
             leftcols = c("studlab"), leftlabs = c("Author"))
 
 # Funnel plot visualization
-funnel.meta(random_adults_RCT, studlab = TRUE, pos.studlab = 3, col = "blue")
+funnel(random_adults_RCT, studlab = TRUE, pos.studlab = 3, col = "blue")
 
 
 ############################################################
@@ -198,11 +198,11 @@ random_peds_RCT <- metagen(TE = smd_between, seTE = se_between, studlab = study,
 summary(random_peds_RCT)
 
 # Forest plot visualization
-forest.meta(random_peds_RCT, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, 
+forest(random_peds_RCT, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, 
             leftcols = c("studlab"), leftlabs = c("Author"))
 
 # Funnel plot visualization
-funnel.meta(random_peds_RCT, studlab = TRUE, pos.studlab = 3, col = "blue")
+funnel(random_peds_RCT, studlab = TRUE, pos.studlab = 3, col = "blue")
 
 
 # Perform meta-analysis considering subgroup analysis for age group
@@ -216,7 +216,7 @@ peds_rct_age <- metagen(TE = smd_between, seTE = se_between, studlab = study,
 summary(peds_rct_age)
 
 # Forest plot visualizing the subgroup analysis
-forest.meta(peds_rct_age, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
+forest(peds_rct_age, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
 
 
 ############################################################
@@ -341,11 +341,11 @@ random_care_RCT <- metagen(TE = smd_between, seTE = se_between, studlab = study,
 summary(random_care_RCT)
 
 # Forest plot visualization
-forest.meta(random_care_RCT, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, 
+forest(random_care_RCT, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, 
             leftcols = c("studlab"), leftlabs = c("Author"))
 
 # Funnel plot visualization
-funnel.meta(random_care_RCT, studlab = TRUE, pos.studlab = 3, col = "blue")
+funnel(random_care_RCT, studlab = TRUE, pos.studlab = 3, col = "blue")
 
 # Perform meta-analysis considering subgroup analysis for age group
 care_rct_age <- metagen(TE = smd_between, seTE = se_between, studlab = study, 
@@ -357,4 +357,4 @@ care_rct_age <- metagen(TE = smd_between, seTE = se_between, studlab = study,
 summary(care_rct_age)
 
 # Forest plot visualizing the subgroup analysis
-forest.meta(care_rct_age, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
+forest(care_rct_age, sortvar = risk_bias, prediction = TRUE, print.tau2 = FALSE, leftcols = c("studlab"), leftlabs = c("Author"), print.Q.subgroup = FALSE)
