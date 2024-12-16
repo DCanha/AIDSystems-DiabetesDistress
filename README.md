@@ -5,7 +5,7 @@ Automated insulin delivery systems (AID) provide an alternative to multiple dail
 ## Repository Structure
 
 In this repository you will find the ```code``` folder that contains all the syntax needed to reproduce the meta-analysis results:
- - ```ma-before-after.R```: Contains the R code for conducting meta-analysis on Before-After Studies (BAS) examining the impact of AID on DD. Three separate analyses are conducted for each population: adult, pediatric, and caregiver.
+ - ```ma-before-after.R```: Contains the R code for conducting meta-analysis on Before-After Studies (BAS) examining the impact of AID on DD. Three separate analyses are conducted for each population: adult, pediatric, and caregiver. For paediatric & caregiver populations, sub-group analyses were conducted to investigate the effect in children vs teenagers. 
  - ```ma-rct.R```: Contains the R code for analyzing Randomized Controlled Trials (RCTs) to assess the effect of AID on DD. Three separate analyses are conducted for each population: adult, pediatric, and caregiver.
 
 ## How to use
@@ -14,5 +14,11 @@ To replicate the analysis or adapt it to similar research, follow the comments a
 
 ## Dependencies 
 
- - R (4.2.2)
- - R packages: *dplyr*, *esc*, *meta*, *metafor*, *estmeansd*
+ - R (4.4.1)
+ - R packages: *dplyr*, *esc*, *meta*, *metafor*, *estmeansd*, *dmetar*
+
+## Published Work
+
+Please refer to the following paper for a comprehensive overview of the methodology, results, and interpretations:
+
+TO BE ADDED
