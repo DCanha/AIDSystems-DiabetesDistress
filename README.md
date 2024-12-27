@@ -21,4 +21,4 @@ To replicate the analysis or adapt it to similar research, follow the comments a
 
 Please refer to the following paper for a comprehensive overview of the methodology, results, and interpretations:
 
-TO BE ADDED
+ - Canha D, McMahon V, Schmitz S, et al. The effect of automated insulin  delivery system use on diabetes distress in people  with type 1 diabetes and their caregivers: A  systematic review and meta-analysis. Diabet Med. 2024;00:e15503. doi:10.1111/dme.15503
